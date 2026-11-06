@@ -154,13 +154,13 @@ Without a Groq key, the app uses a deterministic offline writer that is grounded
 
 ## Live verification (real Hindsight + Groq)
 
-The offline checks are not enough to prove the live path. `smoke_test.py` deliberately **fails** if Hindsight is unreachable instead of falling back.
+The offline checks are not enough to prove the live path. `scripts/smoke_test.py` deliberately **fails** if Hindsight is unreachable instead of falling back.
 
 ```bash
 export HINDSIGHT_BASE_URL=https://your-cloud-url    # or http://localhost:8888
 export HINDSIGHT_API_KEY=your-hindsight-key         # blank for local Docker
 export GROQ_API_KEY=gsk_your_groq_key               # optional; skipped if absent
-uv run python smoke_test.py
+uv run python scripts/smoke_test.py
 ```
 
 It runs, in order:
@@ -176,7 +176,7 @@ Expected last line: `PASS: ...` for each step. A non-zero exit code means the li
 Then run the full acceptance test against the real backend:
 
 ```bash
-uv run python demo_check.py          # seeds the configured bank and asserts INC-2041 / INC-2139
+uv run python scripts/demo_check.py          # seeds the configured bank and asserts INC-2041 / INC-2139
 uv run streamlit run app.py          # Seed → checkout preset → Run
 ```
 
@@ -251,20 +251,47 @@ Verified output is in the "Verification status" section below.
 
 ---
 
-## File map
+## Project Structure & File Map
 
-| File | Purpose |
+```
+MircosoftHindsight/
+├── src/
+│   ├── core/
+│   │   ├── memory.py            # MemoryStore: Hindsight retain/recall/reflect + fallback
+│   │   ├── agent.py             # Incident Response Agent & prompt grounding logic
+│   │   └── seed_data.py         # Northwind Pay incident history & policies
+│   ├── integrations/
+│   │   ├── oneuptime.py         # OneUptime adapter, probe_endpoint, chaos scenarios, client
+│   │   └── webhook_server.py    # OneUptime webhook receiver (/oneuptime/briefing)
+├── examples/
+│   └── real_world_app/
+│       ├── server.py            # Real target eCommerce checkout-api (:8080) with /health & chaos
+│       ├── test_traffic.py      # Automated traffic generator & outage simulator
+│       └── README.md            # Target service documentation
+├── scripts/
+│   ├── start_demo.sh            # Single script to launch microservice + webhook + Streamlit
+│   ├── demo_check.py            # Acceptance test with assertions
+│   └── smoke_test.py            # Live Hindsight Cloud connectivity test
+├── app.py                       # Streamlit UI with OneUptime Monitor & Lab
+├── demo.md                      # Complete video recording script & step-by-step guide
+├── README.md                    # Project documentation
+├── pyproject.toml               # Dependencies and packaging
+└── .env.example                 # Environment configuration template
+```
+
+| Path | Purpose |
 |---|---|
-| `memory.py` | `MemoryStore` + `Memory`: Hindsight `retain`/`recall`/`reflect`, connection probe, visible local fallback |
-| `seed_data.py` | 11 fictional Northwind Pay incidents, 4 policies, 4 demo alerts, document renderers |
-| `agent.py` | `run_agent()`, system prompt, memory block, offline deterministic briefing, LLM error handling |
-| `app.py` | Streamlit UI: sidebar status/seed, before-vs-after, close the loop, reflect |
-| `demo_check.py` | End-to-end acceptance check with assertions |
-| `smoke_test.py` | Live-only Hindsight + Groq connectivity check; fails instead of falling back |
-| `.github/workflows/live-smoke.yml` | Manual CI job for the live check using repository secrets |
-| `pyproject.toml` / `uv.lock` | Dependencies and the locked resolution |
-| `.env.example` | Environment template, no secrets |
-| `README.md` | This document |
+| `src/core/memory.py` | `MemoryStore` + `Memory`: Hindsight `retain`/`recall`/`reflect`, connection probe, visible local fallback |
+| `src/core/agent.py` | `run_agent()`, system prompt, memory block, offline deterministic briefing, LLM error handling |
+| `src/core/seed_data.py` | 11 fictional Northwind Pay incidents, 4 policies, 4 demo alerts, document renderers |
+| `src/integrations/oneuptime.py` | OneUptime incident adapter, live endpoint prober (`probe_endpoint`), chaos outage scenarios, and `OneUptimeClient` |
+| `src/integrations/webhook_server.py` | Live webhook receiver (`/oneuptime`, `/oneuptime/briefing`) connecting OneUptime Workflows to Hindsight |
+| `examples/real_world_app/server.py` | Live runnable microservice (`checkout-api`) on port 8080 with `/health`, `/metrics`, and chaos switch |
+| `scripts/start_demo.sh` | One-command runner for the whole demo environment |
+| `app.py` | Streamlit UI: live before/after briefing, OneUptime monitor & chaos lab, incident intake, close loop, reflect, integration blueprint |
+| `demo.md` | Word-for-word 3-4 minute video script with timeline and visual cues |
+| `scripts/demo_check.py` | End-to-end acceptance check with assertions |
+| `scripts/smoke_test.py` | Live-only Hindsight + Groq connectivity check |
 
 ---
 
@@ -291,6 +318,58 @@ Verified output is in the "Verification status" section below.
 
 Guardrails for production: redact secrets/PII before `retain`, use one bank per environment/team, scope API keys, log who retained what, and keep a human approval step. The agent recommends commands; it should not execute them.
 
+---
+
+## OneUptime Integration: The Monitoring & Outage Layer
+
+[OneUptime](https://github.com/OneUptime/oneuptime) is an open-source observability, status page, and incident management suite. In a real-world enterprise production setup:
+- **OneUptime** is the **sensory/monitoring system** watching endpoints, opening incidents, and alerting engineers.
+- **Hindsight** is the **cognitive memory layer** that recognizes recurrence patterns, retrieves proven fixes, and warns against historical pitfalls.
+
+### 1. Running OneUptime Locally
+
+```bash
+git clone --depth 1 --single-branch --branch release https://github.com/OneUptime/oneuptime.git
+cd oneuptime
+cp config.example.env config.env
+npm start
+# Or: docker compose -f docker-compose.yml up -d
+```
+Access the OneUptime dashboard at `http://localhost`.
+
+### 2. Live Webhook Receiver (`src/integrations/webhook_server.py`)
+
+Run the dedicated webhook receiver:
+```bash
+uv run python src/integrations/webhook_server.py
+```
+It binds to `http://127.0.0.1:8787/oneuptime` by default (configurable via `ONEUPTIME_WEBHOOK_HOST` and `ONEUPTIME_WEBHOOK_PORT`).
+
+When OneUptime fires an incident webhook:
+1. `POST /oneuptime` parses and automatically retains resolved post-mortems in Hindsight.
+2. `POST /oneuptime/briefing` or `POST /oneuptime?brief=true` triggers an instant AI memory briefing and returns it in JSON response:
+```json
+{
+  "ok": true,
+  "incident_id": "INC-OU9001",
+  "service": "checkout-api",
+  "briefing": "**Likely root cause — high confidence**...",
+  "recalled_memories_count": 12
+}
+```
+
+### 3. OneUptime Service Monitor & Outage Lab in Streamlit
+
+Open the app:
+```bash
+uv run streamlit run app.py
+```
+Head to the **"🛰 OneUptime Service Monitor & Lab"** tab to:
+- Monitor Northwind Pay's microservices (`checkout-api`, `payment-gateway`, `auth-service`, `orders-db`).
+- **Probe Any Real URL:** Enter any real-world API or website (e.g. `https://httpbin.org/status/200` or your own API) to test latency, HTTP status, and error states.
+- **Chaos Testing / Break a Service:** Trigger simulated outages on demand to see OneUptime immediately declare an incident and dispatch telemetry to Hindsight.
+- **Instant AI Triage:** Review the incident with Hindsight memory vs generic runbooks, and close the loop with one click!
+
 ### What we borrowed from official sources
 
 - [Hindsight self-driving agents — Incident Response Commander](https://github.com/vectorize-io/self-driving-agents/blob/main/engineering/ops/incident-response-commander.md): severity/comms discipline and blameless post-incident capture.
@@ -309,16 +388,16 @@ This is a hackathon demo, not a production pager. There is no auth, no live Prom
 
 **Ran locally on 2026-11-06 (macOS, Python 3.13.11, `hindsight-client` 1.2.0, `streamlit` 1.67.0, `openai` 3.46.0):**
 
-- `uv run python -m py_compile memory.py seed_data.py agent.py app.py demo_check.py smoke_test.py` — passed.
-- `uv run python demo_check.py` in fallback mode (no Hindsight server, no Groq key) — passed all assertions. The memory run recalled 8 documents, cited INC-2139 and INC-2041, recommended rollback, and warned about scaling/restarting.
+- `uv run python -m py_compile app.py src/core/memory.py src/core/seed_data.py src/core/agent.py src/integrations/oneuptime.py src/integrations/webhook_server.py scripts/demo_check.py scripts/smoke_test.py` — passed.
+- `uv run python scripts/demo_check.py` in fallback mode (no Hindsight server, no Groq key) — passed all assertions. The memory run recalled 8 documents, cited INC-2139 and INC-2041, recommended rollback, and warned about scaling/restarting.
 - Streamlit app smoke-tested with Streamlit's `AppTest`: seed (15 documents), run both briefings, close an incident, and reflect all completed without exceptions.
-- `smoke_test.py` with no server exits `1` and reports the connection error, as designed; it does not silently fall back.
+- `scripts/smoke_test.py` with no server exits `1` and reports the connection error, as designed; it does not silently fall back.
 - The GitHub Actions workflow YAML parses correctly.
 
 **Live Hindsight Cloud + Groq (same date, `HINDSIGHT_BASE_URL=https://api.hindsight.vectorize.io`):**
 
-- `python smoke_test.py` — passed all five steps: Hindsight probe, retain, recall (token returned), reflect (338 characters), and a real Groq completion (`openai/gpt-oss-120b` replied `OK`).
-- `python demo_check.py` — passed all assertions against the live bank. It seeded 11 incidents and 4 policies, recalled 13 memory units, cited **INC-2139**, **INC-2041**, and **INC-2124**, recommended rollback, and warned about scaling and restarting. This is the same command staff can rerun; it is idempotent.
+- `python scripts/smoke_test.py` — passed all five steps: Hindsight probe, retain, recall (token returned), reflect (338 characters), and a real Groq completion (`openai/gpt-oss-120b` replied `OK`).
+- `python scripts/demo_check.py` — passed all assertions against the live bank. It seeded 11 incidents and 4 policies, recalled 13 memory units, cited **INC-2139**, **INC-2041**, and **INC-2124**, recommended rollback, and warned about scaling and restarting. This is the same command staff can rerun; it is idempotent.
 - `reflect` on the live bank answered a cross-incident question about scaling/restarting with **INC-2124** and the 960/1000 Postgres connection consequence.
 - Streamlit `AppTest` connected to the live bank without exceptions and rendered the sidebar metrics.
 - Repeated seeding was verified with `document_id` lookups: `incident-INC-2139` stayed at 2 memory units after multiple seed runs (replace, not append).

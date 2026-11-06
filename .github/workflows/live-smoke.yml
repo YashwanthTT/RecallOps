@@ -15,7 +15,7 @@ jobs:
           python-version: "3.13"
       - run: uv sync --frozen
       - name: Check live Hindsight and Groq
-        run: uv run python smoke_test.py
+        run: uv run python scripts/smoke_test.py
         env:
           HINDSIGHT_BASE_URL: ${{ secrets.HINDSIGHT_BASE_URL }}
           HINDSIGHT_API_KEY: ${{ secrets.HINDSIGHT_API_KEY }}

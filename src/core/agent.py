@@ -12,7 +12,10 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from memory import Memory, MemoryStore
+try:
+    from src.core.memory import Memory, MemoryStore
+except ImportError:
+    from memory import Memory, MemoryStore
 
 DEFAULT_MODEL = "openai/gpt-oss-120b"
 DEFAULT_BASE_URL = "https://api.groq.com/openai/v1"
@@ -98,9 +101,9 @@ def parse_incident(text: str) -> ParsedIncident | None:
     incident_id = _field(text, "Incident ID")
     if not incident_id:
         # Hindsight may return an extracted fact plus the stored context.
-        match = re.search(r"\b(INC-\d+)\b", text)
+        match = re.search(r"\b(INC-[A-Z0-9-]+)\b", text)
         incident_id = match.group(1) if match else ""
-    if not re.fullmatch(r"INC-\d+", incident_id or ""):
+    if not re.fullmatch(r"INC-[A-Z0-9-]+", incident_id or ""):
         return None
     service = _field(text, "Service")
     if not service:
