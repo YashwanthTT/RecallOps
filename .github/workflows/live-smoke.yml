@@ -10,12 +10,12 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.13"
-      - run: pip install -r requirements.txt
+      - run: uv sync --frozen
       - name: Check live Hindsight and Groq
-        run: python smoke_test.py
+        run: uv run python smoke_test.py
         env:
           HINDSIGHT_BASE_URL: ${{ secrets.HINDSIGHT_BASE_URL }}
           HINDSIGHT_API_KEY: ${{ secrets.HINDSIGHT_API_KEY }}

@@ -36,6 +36,8 @@ Who to page, which channel, and any time-bound policy from memory.
 Rules:
 - If RETRIEVED MEMORY is missing, empty, or says retrieval failed: give a generic runbook and state plainly that no incident history was available. Do not cite any incident ID.
 - Never invent an incident ID, command, policy, responder, or metric. Use only the alert and retrieved memory.
+- Every command in **Do first** must appear verbatim in RETRIEVED MEMORY. Do not invent, adapt, or extrapolate a command (no new kubectl scale/restart/rollout variants). If memory has no command for a step, describe the check in words and omit the command.
+- Do not recommend scaling up or down unless a retrieved memory recommends that exact direction. "Scaling up made it worse" does not justify scaling down.
 - Never recommend an action that RETRIEVED MEMORY says made things worse.
 - Be concise. No preamble, no closing summary, no tables.
 """
@@ -176,19 +178,28 @@ def _offline_briefing(
 ) -> str:
     """Build a grounded briefing from recalled memories without an LLM."""
     if not memory_requested:
-        return _generic_briefing(service, "Memory was not consulted for this run (baseline mode).")
+        return _generic_briefing(
+            service, "Memory was not consulted for this run (baseline mode)."
+        )
     if memory_error:
         return _generic_briefing(service, f"Memory recall failed ({memory_error}).")
     if not memories:
         source = "Hindsight" if backend == "hindsight" else "the local fallback"
-        return _generic_briefing(service, f"{source} returned no relevant memories for this service and alert.")
+        return _generic_briefing(
+            service,
+            f"{source} returned no relevant memories for this service and alert.",
+        )
 
     incidents = _dedupe_incidents(memories)
     if not incidents:
-        return _generic_briefing(service, "Memory contained policies but no matching past incidents.")
+        return _generic_briefing(
+            service, "Memory contained policies but no matching past incidents."
+        )
 
     top = incidents[0]
-    same_service_incidents = [incident for incident in incidents if incident.service == top.service]
+    same_service_incidents = [
+        incident for incident in incidents if incident.service == top.service
+    ]
     confidence = "high" if len(same_service_incidents) >= 2 else "medium"
     if not top.root_cause:
         confidence = "low"
@@ -200,7 +211,11 @@ def _offline_briefing(
         root += "The stored memory does not include a root-cause field."
 
     match_lines = []
-    matching = same_service_incidents[:4] if len(same_service_incidents) >= 2 else incidents[:4]
+    matching = (
+        same_service_incidents[:4]
+        if len(same_service_incidents) >= 2
+        else incidents[:4]
+    )
     for incident in matching:
         ttr = f" · TTR {incident.ttr_minutes}m" if incident.ttr_minutes else ""
         match_lines.append(
@@ -209,13 +224,15 @@ def _offline_briefing(
 
     do_lines = [f"{i}. {step}" for i, step in enumerate(top.steps[:4], 1)]
     if not do_lines:
-        do_lines = ["1. Inspect the service logs and recent deploys; no step-by-step resolution was stored."]
+        do_lines = [
+            "1. Inspect the service logs and recent deploys; no step-by-step resolution was stored."
+        ]
 
-    avoid_lines = [
-        f"- **{top.id}**: {action}" for action in top.what_failed[:4]
-    ]
+    avoid_lines = [f"- **{top.id}**: {action}" for action in top.what_failed[:4]]
     if not avoid_lines:
-        avoid_lines = ["- No documented harmful actions for this pattern; proceed carefully."]
+        avoid_lines = [
+            "- No documented harmful actions for this pattern; proceed carefully."
+        ]
 
     escalation: list[str] = []
     for policy_id, policy_text in _policies(memories):
@@ -260,8 +277,39 @@ def _memory_block(memories: list[Memory], memory_error: str | None) -> str:
         )
     if not memories:
         return "RETRIEVED MEMORY: empty. No relevant past incidents or policies were found."
-    documents = "\n\n".join(f"[memory {i}]\n{memory.text}" for i, memory in enumerate(memories, 1))
+    documents = "\n\n".join(
+        f"[memory {i}]\n{memory.text}" for i, memory in enumerate(memories, 1)
+    )
     return f"RETRIEVED MEMORY (from Hindsight):\n\n{documents}"
+
+
+def _normalize_citations(text: str) -> str:
+    """Use ASCII hyphens in incident/policy IDs for copy-paste and assertions.
+
+    Groq sometimes emits U+2011 non-breaking hyphens inside bold Markdown.
+    """
+    return re.sub(r"\b(INC|POL)[\u2010-\u2015\u2212]", r"\1-", text)
+
+
+def _verbatim_steps(memories: list[Memory], max_incidents: int = 3) -> str:
+    """Expose the stored resolution steps, including exact commands.
+
+    Hindsight recall returns compact facts; the full command often lives in the
+    source document's resolution list. Giving the LLM those steps verbatim stops
+    it from inventing a plausible-looking kubectl/deploy command.
+    """
+    incidents = _dedupe_incidents(memories)[:max_incidents]
+    if not incidents:
+        return ""
+    lines = ["VERBATIM RESOLUTION STEPS FROM RETRIEVED MEMORY (copy commands exactly):"]
+    for incident in incidents:
+        lines.append(f"\n{incident.id} — {incident.title}")
+        if not incident.steps:
+            lines.append("(no resolution steps stored)")
+            continue
+        for index, step in enumerate(incident.steps, 1):
+            lines.append(f"{index}. {step}")
+    return "\n".join(lines)
 
 
 def run_agent(
@@ -290,7 +338,9 @@ def run_agent(
     if use_memory:
         query = f"service: {service}\nalert: {alert}\nlogs: {logs[:3000]}"
         try:
-            memories = store.recall(query, limit=6)
+            # Hindsight returns several facts per incident; 10 leaves room for
+            # the exact historical match after near-duplicate facts are ranked.
+            memories = store.recall(query, limit=10)
         except Exception as exc:  # recall must never take down the briefing
             memory_error = f"{type(exc).__name__}: {exc}"
 
@@ -304,7 +354,9 @@ def run_agent(
                     limit=4,
                 )
                 seen = {memory.text for memory in memories}
-                memories.extend(memory for memory in policy_memories if memory.text not in seen)
+                memories.extend(
+                    memory for memory in policy_memories if memory.text not in seen
+                )
             except Exception:
                 # Policy recall is a bonus; keep the incident memories we already have.
                 pass
@@ -325,8 +377,14 @@ def run_agent(
     user_parts = [f"SERVICE: {service}", f"ALERT: {alert}", f"LOGS:\n{logs}"]
     if use_memory:
         user_parts.append(_memory_block(memories, memory_error))
+        if memories and not memory_error:
+            exact = _verbatim_steps(memories)
+            if exact:
+                user_parts.append(exact)
     else:
-        user_parts.append("RETRIEVED MEMORY: none (memory disabled for this baseline run).")
+        user_parts.append(
+            "RETRIEVED MEMORY: none (memory disabled for this baseline run)."
+        )
 
     try:
         from openai import OpenAI
@@ -342,12 +400,12 @@ def run_agent(
                 {"role": "user", "content": "\n\n".join(user_parts)},
             ],
             temperature=0.2,
-            max_tokens=1200,
+            max_tokens=2500,
         )
         content = (response.choices[0].message.content or "").strip()
         if not content:
             raise ValueError("LLM returned an empty response")
-        return content, memories
+        return _normalize_citations(content), memories
     except Exception as exc:
         # Covers auth errors, rate limits, timeouts, and malformed tool calls.
         note = (

@@ -221,14 +221,17 @@ class MemoryStore:
         self.bank_id = bank_id or os.getenv("HINDSIGHT_BANK_ID") or DEFAULT_BANK_ID
         self.backend = "local"
         self.error: str | None = None
+        self.warning: str | None = None
+        self.timeout = float(os.getenv("HINDSIGHT_TIMEOUT") or "120")
         self._client: Any | None = None
         self._local = _LocalStore()
 
     def connect(self) -> str:
         """Probe Hindsight, else fall back to the local keyword store.
 
-        The probe is a cheap recall. A 404 means the server is reachable but the
-        bank has not been created yet, so that still counts as connected.
+        The probe is a cheap recall with a short timeout so a dead localhost
+        fails fast. The operational client gets a long timeout because
+        ``reflect`` runs an agentic loop and can take a minute on Cloud.
         """
         self.error = None
         try:
@@ -238,49 +241,145 @@ class MemoryStore:
             self.backend = "local"
             return self.backend
 
-        client: Any | None = None
+        probe: Any | None = None
+        reachable = False
         try:
-            client = Hindsight(
+            probe = Hindsight(
                 base_url=self.base_url,
                 api_key=self.api_key or None,
-                timeout=5.0,
+                timeout=min(8.0, self.timeout),
                 max_attempts=1,
             )
-            client.recall(
+            probe.recall(
                 bank_id=self.bank_id,
                 query="connectivity probe",
                 budget="low",
                 max_tokens=64,
             )
+            reachable = True
         except Exception as exc:
-            if _is_missing_bank(exc) and client is not None:
-                self._client = client
-                self.backend = "hindsight"
-                return self.backend
-            if client is not None:
-                try:
-                    client.close()
-                except Exception:
-                    pass
+            if _is_missing_bank(exc) and probe is not None:
+                # Server is up; the bank is simply new.
+                reachable = True
+            else:
+                self.error = f"{type(exc).__name__}: {exc}"
+
+        if probe is not None:
+            try:
+                probe.close()
+            except Exception:
+                pass
+
+        if not reachable:
+            self.backend = "local"
+            return self.backend
+
+        try:
+            self._client = Hindsight(
+                base_url=self.base_url,
+                api_key=self.api_key or None,
+                timeout=self.timeout,
+                max_attempts=2,
+            )
+        except Exception as exc:
             self.error = f"{type(exc).__name__}: {exc}"
             self.backend = "local"
             return self.backend
 
-        self._client = client
         self.backend = "hindsight"
         return self.backend
 
-    def retain(self, content: str, context: str = "", timestamp: str | None = None) -> None:
-        """Store one document. Raises on Hindsight errors; the UI catches them."""
+    def close(self) -> None:
+        """Close the underlying HTTP client, if any."""
+        if self._client is not None:
+            try:
+                self._client.close()
+            except Exception:
+                pass
+            self._client = None
+
+    def retain(
+        self,
+        content: str,
+        context: str = "",
+        timestamp: str | None = None,
+        document_id: str | None = None,
+        update_mode: str | None = None,
+    ) -> None:
+        """Store one document. Raises on Hindsight errors; the UI catches them.
+
+        ``document_id`` plus ``update_mode="replace"`` makes repeat seeding
+        idempotent instead of piling up duplicate incidents in the bank.
+        """
         if self.backend == "hindsight" and self._client is not None:
-            self._client.retain(
-                bank_id=self.bank_id,
-                content=content,
-                context=context or None,
-                timestamp=timestamp,
-            )
+            kwargs: dict[str, Any] = {
+                "bank_id": self.bank_id,
+                "content": content,
+                "context": context or None,
+                "timestamp": timestamp,
+            }
+            if document_id:
+                kwargs["document_id"] = document_id
+            if update_mode:
+                kwargs["update_mode"] = update_mode
+            self._client.retain(**kwargs)
             return
         self._local.retain(content, context=context, timestamp=timestamp)
+
+    def configure_bank(self) -> None:
+        """Apply the bank mission and on-call directives used by ``reflect``.
+
+        This is best-effort: an older server or a read-only key must not break
+        the app, so failures are recorded in ``warning`` rather than raised.
+        """
+        self.warning: str | None = None
+        if self.backend != "hindsight" or self._client is None:
+            return
+        try:
+            self._client.create_bank(
+                bank_id=self.bank_id,
+                name="Incident Memory Agent",
+                mission=(
+                    "On-call incident-response memory for Northwind Pay. Store "
+                    "resolved incidents, root causes, harmful remediation, and "
+                    "time-bound escalation policies."
+                ),
+                reflect_mission=(
+                    "Act as an incident commander. Use only retained incidents and "
+                    "policies. Lead with actions that made past incidents worse, "
+                    "cite incident IDs exactly, and never invent history."
+                ),
+            )
+            existing = {
+                getattr(item, "name", "")
+                for item in (getattr(self._client.list_directives(self.bank_id), "items", []) or [])
+            }
+            for name, content, priority in (
+                (
+                    "Cite only retrieved incident IDs",
+                    "Cite only incident IDs that appear in retrieved memories. Never invent an ID, command, or policy.",
+                    10,
+                ),
+                (
+                    "Lead with harmful remediation",
+                    "Before recommending a fix, state the actions that made past incidents worse and the incident IDs that prove it.",
+                    9,
+                ),
+                (
+                    "Admit missing history",
+                    "If no incident matches, say so plainly and give a generic runbook. Do not fabricate past incidents.",
+                    8,
+                ),
+            ):
+                if name not in existing:
+                    self._client.create_directive(
+                        bank_id=self.bank_id,
+                        name=name,
+                        content=content,
+                        priority=priority,
+                    )
+        except Exception as exc:
+            self.warning = f"Bank configuration skipped: {type(exc).__name__}: {exc}"
 
     def recall(self, query: str, limit: int = 6) -> list[Memory]:
         """Return the most relevant memories, best first."""

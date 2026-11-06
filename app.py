@@ -71,23 +71,38 @@ def get_store() -> MemoryStore:
 
 def seed_memories(store: MemoryStore, progress: Any | None = None) -> tuple[int, int, list[str]]:
     """Retain every incident and policy. Returns (documents, incidents, errors)."""
-    items: list[tuple[str, str, str]] = []
+    items: list[tuple[str, str, str, str]] = []
     for incident in INCIDENTS:
         items.append(
             (
                 incident_to_document(incident),
                 f"past incident {incident['id']} on {incident['service']}",
                 incident["date"],
+                f"incident-{incident['id']}",
             )
         )
     for policy in POLICIES:
-        items.append((policy_to_document(policy), f"team policy {policy['id']}", policy["date"]))
+        items.append(
+            (
+                policy_to_document(policy),
+                f"team policy {policy['id']}",
+                policy["date"],
+                f"policy-{policy['id']}",
+            )
+        )
 
     errors: list[str] = []
     stored = 0
-    for index, (content, context, timestamp) in enumerate(items, 1):
+    store.configure_bank()
+    for index, (content, context, timestamp, document_id) in enumerate(items, 1):
         try:
-            store.retain(content, context=context, timestamp=timestamp)
+            store.retain(
+                content,
+                context=context,
+                timestamp=timestamp,
+                document_id=document_id,
+                update_mode="replace",
+            )
             stored += 1
         except Exception as exc:  # one bad document must not abort the seed
             errors.append(f"{context}: {type(exc).__name__}: {exc}")

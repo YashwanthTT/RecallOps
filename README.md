@@ -43,7 +43,7 @@ Memory is not a feature bolted onto the chat. It is the product.
 | Hindsight operation | Where | What it does |
 |---|---|---|
 | `retain` | `seed_data.py` → sidebar **Seed**, and **Close the loop** tab | Stores 11 incidents + 4 policies, and every incident the user resolves, with a timestamp and context |
-| `recall` | `agent.run_agent()` when `use_memory=True` | Retrieves the six most similar incident memories, then a second policy-focused recall so escalation rules are not crowded out by long log documents |
+| `recall` | `agent.run_agent()` when `use_memory=True` | Retrieves up to ten memory units, then a second policy-focused recall so escalation rules are not crowded out by long log documents |
 | `reflect` | **Reflect** tab | Answers cross-incident questions ("what keeps recurring?", "what repeatedly made things worse?") over the whole bank |
 
 The Python client is `hindsight-client`:
@@ -86,14 +86,14 @@ Past incident / closed incident
 
 ### 1. Install
 
+Dependencies are managed with [uv](https://docs.astral.sh/uv/):
+
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+uv sync                       # creates .venv from uv.lock
 cp .env.example .env
 ```
 
-Python 3.11+ is required.
+Python 3.11+ is required (uv fetches a suitable interpreter automatically). Add or update a dependency with `uv add <package>`; it updates `pyproject.toml` and `uv.lock` together.
 
 ### 2. Start Hindsight (choose one)
 
@@ -126,16 +126,17 @@ docker run -it --pull always --name hindsight --restart unless-stopped \
 HINDSIGHT_BASE_URL=https://your-cloud-api-url
 HINDSIGHT_API_KEY=your-key
 HINDSIGHT_BANK_ID=incident-response-agent
+HINDSIGHT_TIMEOUT=120
 ```
 
-The bank is created on the first `retain` if it does not exist.
+The bank is created on the first `retain` if it does not exist. Seeding uses deterministic document IDs with `update_mode="replace"`, so clicking **Seed** again updates the demo data instead of duplicating it. The first seed also applies the bank's `reflect_mission` and three on-call directives (cite only retrieved IDs, lead with harmful remediation, admit missing history).
 
 **No Hindsight server?** Skip this step. The app starts in local fallback mode and all three tabs still work.
 
 ### 3. Start the app
 
 ```bash
-streamlit run app.py
+uv run streamlit run app.py
 ```
 
 Open <http://localhost:8501>, then click **Seed past incidents + policies** in the sidebar.
@@ -159,7 +160,7 @@ The offline checks are not enough to prove the live path. `smoke_test.py` delibe
 export HINDSIGHT_BASE_URL=https://your-cloud-url    # or http://localhost:8888
 export HINDSIGHT_API_KEY=your-hindsight-key         # blank for local Docker
 export GROQ_API_KEY=gsk_your_groq_key               # optional; skipped if absent
-python smoke_test.py
+uv run python smoke_test.py
 ```
 
 It runs, in order:
@@ -175,8 +176,8 @@ Expected last line: `PASS: ...` for each step. A non-zero exit code means the li
 Then run the full acceptance test against the real backend:
 
 ```bash
-python demo_check.py          # seeds the configured bank and asserts INC-2041 / INC-2139
-streamlit run app.py          # Seed → checkout preset → Run
+uv run python demo_check.py          # seeds the configured bank and asserts INC-2041 / INC-2139
+uv run streamlit run app.py          # Seed → checkout preset → Run
 ```
 
 ### Run it from GitHub Actions
@@ -202,6 +203,7 @@ GROQ_API_KEY = "gsk_..."
 HINDSIGHT_BASE_URL = "https://your-cloud-url"
 HINDSIGHT_API_KEY = "your-hindsight-key"
 HINDSIGHT_BANK_ID = "incident-response-agent"
+HINDSIGHT_TIMEOUT = 120
 ```
 
 If the other repo is just where the code lives:
@@ -235,7 +237,7 @@ If the other repo already runs this application, it only needs those same enviro
 ## Acceptance test
 
 ```bash
-python demo_check.py
+uv run python demo_check.py
 ```
 
 Seeds the local fallback store (or Hindsight, if running) and runs the checkout-api 502 preset with `use_memory=False` and `True`. It asserts:
@@ -260,7 +262,7 @@ Verified output is in the "Verification status" section below.
 | `demo_check.py` | End-to-end acceptance check with assertions |
 | `smoke_test.py` | Live-only Hindsight + Groq connectivity check; fails instead of falling back |
 | `.github/workflows/live-smoke.yml` | Manual CI job for the live check using repository secrets |
-| `requirements.txt` | Pinned ranges |
+| `pyproject.toml` / `uv.lock` | Dependencies and the locked resolution |
 | `.env.example` | Environment template, no secrets |
 | `README.md` | This document |
 
@@ -279,6 +281,24 @@ Verified output is in the "Verification status" section below.
 - **Deduplication.** Recalled documents are deduplicated by ID so the same incident cannot be cited twice.
 - **Policies are recalled separately.** Long log documents often beat short policy text in top-k retrieval, so a second policy-focused recall keeps escalation rules in the briefing.
 
+## Where this fits in the real world
+
+- **Incident channel copilot.** A PagerDuty/Slack bot posts the alert and logs, calls the same `run_agent`, and replies with the memory-grounded briefing before the on-call has opened a runbook.
+- **Shift handoff.** `reflect("What broke repeatedly this week, and which fixes made it worse?")` turns raw incident history into a handoff note for the next responder.
+- **Change review.** Before a deploy, ask the bank about the service and the change (pool size, cert rotation, index, feature flag). The answer is evidence from prior incidents, not a generic checklist.
+- **Post-incident learning.** The close-the-loop form retains the root cause, exact fix, harmful actions, and TTR. The next similar alert cites that new memory, which is the improvement loop.
+- **Runbook drift.** When a stored step stops working, the newer resolved incident contradicts it; retrieval surfaces the recent outcome instead of an obsolete wiki page.
+
+Guardrails for production: redact secrets/PII before `retain`, use one bank per environment/team, scope API keys, log who retained what, and keep a human approval step. The agent recommends commands; it should not execute them.
+
+### What we borrowed from official sources
+
+- [Hindsight self-driving agents — Incident Response Commander](https://github.com/vectorize-io/self-driving-agents/blob/main/engineering/ops/incident-response-commander.md): severity/comms discipline and blameless post-incident capture.
+- [Hindsight bank directives](https://docs.hindsight.vectorize.io/cloud/memory-banks) and [mental models](https://docs.hindsight.vectorize.io/cloud/mental-models): bank-level behavior and pre-computed reflections.
+- Hindsight's retain/recall/reflect design: store outcomes, retrieve by situation, and reason across the whole bank rather than only the top-k.
+
+Adopted here: deterministic document IDs for idempotent seeding, a `reflect_mission` plus directives, a longer timeout for agentic `reflect`, and prompt rules that forbid new commands or scaling advice not present in memory.
+
 ## What is intentionally small
 
 This is a hackathon demo, not a production pager. There is no auth, no live Prometheus/PagerDuty integration, no queue, and the local fallback is in-process keyword overlap rather than embeddings. The scope is one workflow done well: alert in, memory-grounded briefing out, closed incident retained.
@@ -289,15 +309,25 @@ This is a hackathon demo, not a production pager. There is no auth, no live Prom
 
 **Ran locally on 2026-11-06 (macOS, Python 3.13.11, `hindsight-client` 1.2.0, `streamlit` 1.67.0, `openai` 3.46.0):**
 
-- `python -m py_compile memory.py seed_data.py agent.py app.py demo_check.py` — passed.
-- `python demo_check.py` in fallback mode (no Hindsight server, no Groq key) — passed all assertions. The memory run recalled 8 documents, cited INC-2139 and INC-2041, recommended rollback, and warned about scaling/restarting.
+- `uv run python -m py_compile memory.py seed_data.py agent.py app.py demo_check.py smoke_test.py` — passed.
+- `uv run python demo_check.py` in fallback mode (no Hindsight server, no Groq key) — passed all assertions. The memory run recalled 8 documents, cited INC-2139 and INC-2041, recommended rollback, and warned about scaling/restarting.
 - Streamlit app smoke-tested with Streamlit's `AppTest`: seed (15 documents), run both briefings, close an incident, and reflect all completed without exceptions.
 - `smoke_test.py` with no server exits `1` and reports the connection error, as designed; it does not silently fall back.
 - The GitHub Actions workflow YAML parses correctly.
 
-**Not tested, because this environment has neither:**
+**Live Hindsight Cloud + Groq (same date, `HINDSIGHT_BASE_URL=https://api.hindsight.vectorize.io`):**
 
-- **Live Hindsight server.** The client signatures were verified against the official docs and the installed 1.2.0 package; `retain`/`recall`/`reflect` were not executed against a live server. Run `smoke_test.py` with real credentials to close this gap.
-- **Live Groq LLM.** Every briefing shown in the verification run came from the deterministic offline writer. The live LLM path is implemented and mock-tested but not exercised against Groq. `smoke_test.py` makes one real completion when `GROQ_API_KEY` is set.
+- `python smoke_test.py` — passed all five steps: Hindsight probe, retain, recall (token returned), reflect (338 characters), and a real Groq completion (`openai/gpt-oss-120b` replied `OK`).
+- `python demo_check.py` — passed all assertions against the live bank. It seeded 11 incidents and 4 policies, recalled 13 memory units, cited **INC-2139**, **INC-2041**, and **INC-2124**, recommended rollback, and warned about scaling and restarting. This is the same command staff can rerun; it is idempotent.
+- `reflect` on the live bank answered a cross-incident question about scaling/restarting with **INC-2124** and the 960/1000 Postgres connection consequence.
+- Streamlit `AppTest` connected to the live bank without exceptions and rendered the sidebar metrics.
+- Repeated seeding was verified with `document_id` lookups: `incident-INC-2139` stayed at 2 memory units after multiple seed runs (replace, not append).
+- The first live run exposed two real issues that are now fixed: `reflect` needed a 120-second timeout, and Groq `gpt-oss-120b` needs more than 10 output tokens because reasoning tokens count toward `max_tokens`.
+
+**Still not tested:**
+
+- PagerDuty/Slack/Statuspage integrations, multi-user auth, and browser-level UI interaction (only Streamlit `AppTest`).
+- A production-scale bank (thousands of incidents) and its latency/cost profile.
+- Automatic redaction of secrets/PII before `retain`; that is an integration responsibility, not implemented here.
 
 All incident data, people, services, and policies are fictional.

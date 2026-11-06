@@ -37,6 +37,7 @@ def main() -> int:
     backend = store.connect()
     if backend != "hindsight":
         print(f"FAIL: Hindsight did not connect. Fallback reason: {store.error}", file=sys.stderr)
+        store.close()
         return 1
     print("PASS: Hindsight connected (probe recall succeeded)")
 
@@ -56,6 +57,7 @@ def main() -> int:
         store.retain(document, context=f"live smoke test {token}")
     except Exception as exc:
         print(f"FAIL: retain() raised {type(exc).__name__}: {exc}", file=sys.stderr)
+        store.close()
         return 1
     print("PASS: retain() accepted a document")
 
@@ -63,11 +65,13 @@ def main() -> int:
         memories = store.recall(token, limit=5)
     except Exception as exc:
         print(f"FAIL: recall() raised {type(exc).__name__}: {exc}", file=sys.stderr)
+        store.close()
         return 1
     if not any(token in memory.text for memory in memories):
         print(f"FAIL: recall() did not return the retained token. Results: {len(memories)}", file=sys.stderr)
         for memory in memories:
             print(f"  - {memory.text[:120]}", file=sys.stderr)
+        store.close()
         return 1
     print(f"PASS: recall() returned the token ({len(memories)} results)")
 
@@ -75,15 +79,18 @@ def main() -> int:
         answer = store.reflect("What did the live smoke test retain?")
     except Exception as exc:
         print(f"FAIL: reflect() raised {type(exc).__name__}: {exc}", file=sys.stderr)
+        store.close()
         return 1
     if not answer.strip():
         print("FAIL: reflect() returned an empty answer", file=sys.stderr)
+        store.close()
         return 1
     print(f"PASS: reflect() returned {len(answer)} characters")
 
     groq_key = os.getenv("GROQ_API_KEY", "").strip()
     if not groq_key:
         print("SKIP: GROQ_API_KEY not set; LLM call not tested")
+        store.close()
         return 0
 
     try:
@@ -97,12 +104,14 @@ def main() -> int:
             model=os.getenv("LLM_MODEL") or "openai/gpt-oss-120b",
             messages=[{"role": "user", "content": "Reply with exactly: OK"}],
             temperature=0,
-            max_tokens=10,
+            max_tokens=100,
         )
         content = (response.choices[0].message.content or "").strip()
     except Exception as exc:
         print(f"FAIL: Groq call raised {type(exc).__name__}: {exc}", file=sys.stderr)
+        store.close()
         return 1
+    store.close()
     if "OK" not in content.upper():
         print(f"FAIL: unexpected Groq response: {content!r}", file=sys.stderr)
         return 1
