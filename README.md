@@ -151,6 +151,70 @@ Without a Groq key, the app uses a deterministic offline writer that is grounded
 
 ---
 
+## Live verification (real Hindsight + Groq)
+
+The offline checks are not enough to prove the live path. `smoke_test.py` deliberately **fails** if Hindsight is unreachable instead of falling back.
+
+```bash
+export HINDSIGHT_BASE_URL=https://your-cloud-url    # or http://localhost:8888
+export HINDSIGHT_API_KEY=your-hindsight-key         # blank for local Docker
+export GROQ_API_KEY=gsk_your_groq_key               # optional; skipped if absent
+python smoke_test.py
+```
+
+It runs, in order:
+
+1. `connect()` probe recall (fails, does not fall back);
+2. `retain()` a synthetic document into `<bank>-smoke`;
+3. `recall()` and asserts the unique token comes back;
+4. `reflect()` and asserts a non-empty answer;
+5. one real Groq chat completion, if `GROQ_API_KEY` is set.
+
+Expected last line: `PASS: ...` for each step. A non-zero exit code means the live path is broken.
+
+Then run the full acceptance test against the real backend:
+
+```bash
+python demo_check.py          # seeds the configured bank and asserts INC-2041 / INC-2139
+streamlit run app.py          # Seed → checkout preset → Run
+```
+
+### Run it from GitHub Actions
+
+`.github/workflows/live-smoke.yml` is a manual workflow. Add these repository secrets under **Settings → Secrets and variables → Actions**:
+
+| Secret | Required | Value |
+|---|---|---|
+| `HINDSIGHT_BASE_URL` | yes | Cloud API URL or `http://localhost:8888` |
+| `HINDSIGHT_API_KEY` | Cloud only | Hindsight key |
+| `HINDSIGHT_BANK_ID` | no | defaults to `incident-response-agent`; smoke uses `-smoke` suffix |
+| `GROQ_API_KEY` | no | real LLM call is skipped without it |
+| `LLM_MODEL` | no | defaults to `openai/gpt-oss-120b` |
+
+Then **Actions → live-smoke → Run workflow**. GitHub-hosted runners cannot reach a Docker container on your laptop, so use Hindsight Cloud there.
+
+### Use a different GitHub repo / deployment
+
+The app reads configuration from `.env` locally and from Streamlit Cloud secrets when deployed. For Streamlit Community Cloud, add this in **App settings → Secrets**:
+
+```toml
+GROQ_API_KEY = "gsk_..."
+HINDSIGHT_BASE_URL = "https://your-cloud-url"
+HINDSIGHT_API_KEY = "your-hindsight-key"
+HINDSIGHT_BANK_ID = "incident-response-agent"
+```
+
+If the other repo is just where the code lives:
+
+```bash
+git remote add origin git@github.com:you/incident-memory-agent.git
+git push -u origin main
+```
+
+If the other repo already runs this application, it only needs those same environment variables/secrets and a redeploy. If it runs a *different* app, it will not share this app's behavior just by pointing at the same Hindsight bank — it must call the same `retain` / `recall` / `reflect` operations.
+
+---
+
 ## 3-minute demo script
 
 | Time | Action | What to say |
@@ -194,6 +258,8 @@ Verified output is in the "Verification status" section below.
 | `agent.py` | `run_agent()`, system prompt, memory block, offline deterministic briefing, LLM error handling |
 | `app.py` | Streamlit UI: sidebar status/seed, before-vs-after, close the loop, reflect |
 | `demo_check.py` | End-to-end acceptance check with assertions |
+| `smoke_test.py` | Live-only Hindsight + Groq connectivity check; fails instead of falling back |
+| `.github/workflows/live-smoke.yml` | Manual CI job for the live check using repository secrets |
 | `requirements.txt` | Pinned ranges |
 | `.env.example` | Environment template, no secrets |
 | `README.md` | This document |
@@ -226,10 +292,12 @@ This is a hackathon demo, not a production pager. There is no auth, no live Prom
 - `python -m py_compile memory.py seed_data.py agent.py app.py demo_check.py` — passed.
 - `python demo_check.py` in fallback mode (no Hindsight server, no Groq key) — passed all assertions. The memory run recalled 8 documents, cited INC-2139 and INC-2041, recommended rollback, and warned about scaling/restarting.
 - Streamlit app smoke-tested with Streamlit's `AppTest`: seed (15 documents), run both briefings, close an incident, and reflect all completed without exceptions.
+- `smoke_test.py` with no server exits `1` and reports the connection error, as designed; it does not silently fall back.
+- The GitHub Actions workflow YAML parses correctly.
 
 **Not tested, because this environment has neither:**
 
-- **Live Hindsight server.** The client signatures were verified against the official docs and the installed 1.2.0 package; `retain`/`recall`/`reflect` were not executed against a live server.
-- **Live Groq LLM.** Every briefing shown in the verification run came from the deterministic offline writer. The live LLM path is implemented but unexercised.
+- **Live Hindsight server.** The client signatures were verified against the official docs and the installed 1.2.0 package; `retain`/`recall`/`reflect` were not executed against a live server. Run `smoke_test.py` with real credentials to close this gap.
+- **Live Groq LLM.** Every briefing shown in the verification run came from the deterministic offline writer. The live LLM path is implemented and mock-tested but not exercised against Groq. `smoke_test.py` makes one real completion when `GROQ_API_KEY` is set.
 
 All incident data, people, services, and policies are fictional.

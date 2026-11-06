@@ -24,6 +24,29 @@ from seed_data import (
 
 load_dotenv()
 
+
+def _load_streamlit_secrets() -> None:
+    """Map Streamlit Cloud secrets into env vars for the shared modules."""
+    for key in (
+        "GROQ_API_KEY",
+        "GROQ_BASE_URL",
+        "LLM_MODEL",
+        "HINDSIGHT_BASE_URL",
+        "HINDSIGHT_API_KEY",
+        "HINDSIGHT_BANK_ID",
+    ):
+        if os.getenv(key):
+            continue
+        try:
+            value = st.secrets[key]
+        except Exception:
+            continue
+        if value:
+            os.environ[key] = str(value)
+
+
+_load_streamlit_secrets()
+
 st.set_page_config(
     page_title="Incident Memory Agent — Northwind Pay",
     page_icon="🧠",

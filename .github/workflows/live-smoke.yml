@@ -1,0 +1,24 @@
+name: live-smoke
+
+# Manual only: this spends Hindsight/LLM credits and needs repository secrets.
+on:
+  workflow_dispatch:
+
+jobs:
+  live-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r requirements.txt
+      - name: Check live Hindsight and Groq
+        run: python smoke_test.py
+        env:
+          HINDSIGHT_BASE_URL: ${{ secrets.HINDSIGHT_BASE_URL }}
+          HINDSIGHT_API_KEY: ${{ secrets.HINDSIGHT_API_KEY }}
+          HINDSIGHT_BANK_ID: ${{ secrets.HINDSIGHT_BANK_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          LLM_MODEL: ${{ secrets.LLM_MODEL }}

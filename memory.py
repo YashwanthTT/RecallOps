@@ -216,9 +216,9 @@ class MemoryStore:
     """
 
     def __init__(self, base_url: str | None = None, api_key: str | None = None, bank_id: str | None = None) -> None:
-        self.base_url = base_url or os.getenv("HINDSIGHT_BASE_URL", DEFAULT_BASE_URL)
+        self.base_url = base_url or os.getenv("HINDSIGHT_BASE_URL") or DEFAULT_BASE_URL
         self.api_key = api_key if api_key is not None else os.getenv("HINDSIGHT_API_KEY", "")
-        self.bank_id = bank_id or os.getenv("HINDSIGHT_BANK_ID", DEFAULT_BANK_ID)
+        self.bank_id = bank_id or os.getenv("HINDSIGHT_BANK_ID") or DEFAULT_BANK_ID
         self.backend = "local"
         self.error: str | None = None
         self._client: Any | None = None

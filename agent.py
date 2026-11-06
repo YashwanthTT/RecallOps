@@ -333,10 +333,10 @@ def run_agent(
 
         client = OpenAI(
             api_key=api_key,
-            base_url=os.getenv("GROQ_BASE_URL", DEFAULT_BASE_URL),
+            base_url=os.getenv("GROQ_BASE_URL") or DEFAULT_BASE_URL,
         )
         response = client.chat.completions.create(
-            model=os.getenv("LLM_MODEL", DEFAULT_MODEL),
+            model=os.getenv("LLM_MODEL") or DEFAULT_MODEL,
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": "\n\n".join(user_parts)},
