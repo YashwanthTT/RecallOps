@@ -1,7 +1,6 @@
 """Live connectivity check for Hindsight and Groq.
 
-This is the test that cannot run in the offline fallback. It deliberately
-fails if Hindsight is unreachable instead of silently using the local store.
+It deliberately fails if Hindsight is unreachable; there is no local store.
 
 Run locally:
     export HINDSIGHT_BASE_URL=https://your-cloud-url

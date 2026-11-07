@@ -192,13 +192,16 @@ with st.sidebar:
         st.success("Hindsight connected")
         st.caption(f"{store.base_url} · bank `{store.bank_id}`")
     else:
-        st.warning("Local fallback active")
+        st.error("Hindsight unavailable")
         st.caption(
-            "Hindsight did not answer, so memories live in this process and are matched by "
-            "keyword overlap. Nothing is hidden."
+            "This app stores and recalls memory only through Hindsight. "
+            "Start the server, check `.env`, then retry."
         )
         if store.error:
             st.code(store.error, language="text")
+        if st.button("Retry Hindsight connection", use_container_width=True):
+            store.connect()
+            st.rerun()
 
     st.divider()
     seeded_docs = st.session_state.get("seeded_docs", 0)
@@ -207,7 +210,7 @@ with st.sidebar:
         "Seed past incidents + policies",
         use_container_width=True,
         type="primary",
-        disabled=seeded_docs > 0,
+        disabled=seeded_docs > 0 or store.backend != "hindsight",
     ):
         progress = st.progress(0.0, text="Starting…")
         stored, incident_count, errors = seed_memories(store, progress)
@@ -232,7 +235,10 @@ with st.sidebar:
     )
     if not os.getenv("GROQ_API_KEY", "").strip():
         st.divider()
-        st.caption("No `GROQ_API_KEY` set: briefings use the deterministic offline writer. Memory recall is still real.")
+        st.caption(
+            "No `GROQ_API_KEY` set: briefings use a deterministic writer grounded in "
+            "the memories Hindsight recalled."
+        )
 
 # ---------------------------------------------------------------- header
 st.title("Incident Memory Agent")
@@ -737,7 +743,7 @@ with tab_reflect:
     st.subheader("Ask the whole memory bank")
     st.caption(
         "`reflect` reasons across every retained incident and policy, not just the top-k matches. "
-        "On the local fallback this is a deterministic synthesis instead of an LLM answer."
+        "This runs against the Hindsight bank."
     )
     question_choice = st.selectbox("Question", REFLECT_PRESETS + ["Custom question"])
     if question_choice == "Custom question":

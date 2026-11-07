@@ -182,6 +182,6 @@ uv run streamlit run app.py
 ## 🛠️ Demo Tips & Verification Checklist
 
 - [x] Run `uv run python scripts/demo_check.py` before recording to verify all assertions pass.
-- [x] Make sure `.env` contains your `HINDSIGHT_API_KEY` and `GROQ_API_KEY` (offline fallback works seamlessly even if keys are absent).
+- [x] Make sure Hindsight is running and `.env` has `HINDSIGHT_BASE_URL` + `HINDSIGHT_API_KEY`. `GROQ_API_KEY` is optional (deterministic writer).
 - [x] Keep terminal font large (16-18pt) and browser zoom at 110%–125% for high readability on YouTube / Loom.
 - [x] Have the microservice dashboard (`http://localhost:8080`) open in a split browser tab if you want to show the live database connection pool bars!

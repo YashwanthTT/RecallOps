@@ -41,6 +41,13 @@ MAX_BODY = 1_000_000
 
 store = MemoryStore()
 backend = store.connect()
+if backend != "hindsight":
+    print(
+        f"FATAL: Hindsight is required but unavailable at {store.base_url} "
+        f"(bank {store.bank_id}): {store.error}"
+    )
+    store.close()
+    raise SystemExit(1)
 store.configure_bank()
 STORE_LOCK = threading.Lock()
 
@@ -167,8 +174,6 @@ class Handler(BaseHTTPRequestHandler):
 def main() -> None:
     print(f"OneUptime receiver: http://{HOST}:{PORT}/oneuptime")
     print(f"Memory backend: {backend} · bank: {store.bank_id}")
-    if backend != "hindsight":
-        print("WARNING: local fallback active; memories will not survive this process.")
     if TOKEN:
         print("Token auth enabled: send X-OneUptime-Token.")
     server = ThreadingHTTPServer((HOST, PORT), Handler)

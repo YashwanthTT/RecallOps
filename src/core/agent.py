@@ -1,9 +1,11 @@
 """The incident-response agent.
 
 ``run_agent`` builds the same prompt whether or not memory is enabled. The only
-difference is the recalled-memory block. If no ``GROQ_API_KEY`` is present, or
-the LLM call fails, it returns a deterministic offline briefing built from the
-same recalled memories, so the demo still works end to end.
+difference is the recalled-memory block. Memory always comes from Hindsight; if
+Hindsight is unavailable the memory-enabled run fails loudly instead of
+inventing a local store. If no ``GROQ_API_KEY`` is present, or the LLM call
+fails, a deterministic writer still assembles the briefing from the memories
+Hindsight recalled.
 """
 
 from __future__ import annotations
@@ -171,26 +173,21 @@ Page the {service} on-call via PagerDuty and open `#inc-{slug}`. No historical e
 """
 
 
-def _offline_briefing(
+def _deterministic_briefing(
     service: str,
     memories: list[Memory],
     *,
     memory_requested: bool,
-    memory_error: str | None,
-    backend: str,
 ) -> str:
-    """Build a grounded briefing from recalled memories without an LLM."""
+    """Build a grounded briefing from Hindsight memories without an LLM."""
     if not memory_requested:
         return _generic_briefing(
             service, "Memory was not consulted for this run (baseline mode)."
         )
-    if memory_error:
-        return _generic_briefing(service, f"Memory recall failed ({memory_error}).")
     if not memories:
-        source = "Hindsight" if backend == "hindsight" else "the local fallback"
         return _generic_briefing(
             service,
-            f"{source} returned no relevant memories for this service and alert.",
+            "Hindsight returned no relevant memories for this service and alert.",
         )
 
     incidents = _dedupe_incidents(memories)
@@ -250,10 +247,9 @@ def _offline_briefing(
         )
 
     footer = (
-        f"\n\n---\n*Offline briefing (no LLM key or LLM error). "
-        f"{len(memories)} {'memory' if len(memories) == 1 else 'memories'} recalled via "
-        f"{'Hindsight' if backend == 'hindsight' else 'the local fallback'}; "
-        "deterministic answer grounded only in those memories.*"
+        f"\n\n---\n*Deterministic briefing (no LLM key or LLM error). "
+        f"{len(memories)} {'memory' if len(memories) == 1 else 'memories'} recalled "
+        "via Hindsight; answer grounded only in those memories.*"
     )
     return f"""**Likely root cause — {confidence} confidence**
 {root}
@@ -272,12 +268,7 @@ def _offline_briefing(
 """
 
 
-def _memory_block(memories: list[Memory], memory_error: str | None) -> str:
-    if memory_error:
-        return (
-            "RETRIEVED MEMORY: retrieval failed. Do not cite any incident ID.\n"
-            f"ERROR: {memory_error}"
-        )
+def _memory_block(memories: list[Memory]) -> str:
     if not memories:
         return "RETRIEVED MEMORY: empty. No relevant past incidents or policies were found."
     documents = "\n\n".join(
@@ -333,54 +324,48 @@ def run_agent(
 
     Returns:
         ``(markdown, memories_used)``. ``memories_used`` is empty for the
-        baseline run. LLM and recall failures never raise; they degrade to an
-        offline briefing.
+        baseline run. LLM failures degrade to a deterministic briefing; a
+        Hindsight recall failure raises so the app never fakes memory.
     """
     memories: list[Memory] = []
-    memory_error: str | None = None
     if use_memory:
         query = f"service: {service}\nalert: {alert}\nlogs: {logs[:3000]}"
-        try:
-            # Hindsight returns several facts per incident; 10 leaves room for
-            # the exact historical match after near-duplicate facts are ranked.
-            memories = store.recall(query, limit=10)
-        except Exception as exc:  # recall must never take down the briefing
-            memory_error = f"{type(exc).__name__}: {exc}"
+        # Hindsight is the only memory backend; a failure here must be visible.
+        # Hindsight returns several facts per incident; 10 leaves room for the
+        # exact historical match after near-duplicate facts are ranked.
+        memories = store.recall(query, limit=10)
 
-        if not memory_error:
-            try:
-                # Policies are short and often lose a top-k race to incident logs.
-                # A second, policy-focused recall makes escalation rules explicit.
-                policy_memories = store.recall(
-                    f"team policy escalation page on-call rollback for {service}; "
-                    f"payments error rate 5%. Alert: {alert[:200]}",
-                    limit=4,
-                )
-                seen = {memory.text for memory in memories}
-                memories.extend(
-                    memory for memory in policy_memories if memory.text not in seen
-                )
-            except Exception:
-                # Policy recall is a bonus; keep the incident memories we already have.
-                pass
+        try:
+            # Policies are short and often lose a top-k race to incident logs.
+            # A second, policy-focused recall makes escalation rules explicit.
+            policy_memories = store.recall(
+                f"team policy escalation page on-call rollback for {service}; "
+                f"payments error rate 5%. Alert: {alert[:200]}",
+                limit=4,
+            )
+            seen = {memory.text for memory in memories}
+            memories.extend(
+                memory for memory in policy_memories if memory.text not in seen
+            )
+        except Exception:
+            # Policy recall is a bonus; keep the incident memories we already have.
+            pass
 
     api_key = os.getenv("GROQ_API_KEY", "").strip()
     if not api_key:
         return (
-            _offline_briefing(
+            _deterministic_briefing(
                 service,
                 memories,
                 memory_requested=use_memory,
-                memory_error=memory_error,
-                backend=store.backend,
             ),
             memories,
         )
 
     user_parts = [f"SERVICE: {service}", f"ALERT: {alert}", f"LOGS:\n{logs}"]
     if use_memory:
-        user_parts.append(_memory_block(memories, memory_error))
-        if memories and not memory_error:
+        user_parts.append(_memory_block(memories))
+        if memories:
             exact = _verbatim_steps(memories)
             if exact:
                 user_parts.append(exact)
@@ -413,16 +398,14 @@ def run_agent(
         # Covers auth errors, rate limits, timeouts, and malformed tool calls.
         note = (
             f"> **LLM unavailable:** `{type(exc).__name__}: {exc}`. "
-            "Showing the offline briefing instead. Hindsight recall still ran.\n\n"
+            "Showing the deterministic briefing instead. Hindsight recall still ran.\n\n"
         )
         return (
             note
-            + _offline_briefing(
+            + _deterministic_briefing(
                 service,
                 memories,
                 memory_requested=use_memory,
-                memory_error=memory_error,
-                backend=store.backend,
             ),
             memories,
         )

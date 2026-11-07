@@ -44,9 +44,24 @@ Alert or incident
 - **`recall`** retrieves relevant history for an active incident.
 - **`reflect`** finds patterns across the entire memory bank.
 
-Hindsight is the primary backend. If it is unavailable, the app clearly
-switches to a local keyword-overlap fallback; it never presents fallback
-results as Hindsight results.
+Hindsight is the only memory backend. There is no local fallback: if the
+server is unreachable the app says so and refuses to answer from memory, rather
+than presenting in-process results as recalled history.
+
+### Where Hindsight is used
+
+| Stage | Hindsight call | Code |
+| --- | --- | --- |
+| Seed history | `retain` | `app.py` → `seed_memories()` |
+| Resolve an incident | `retain` | **Close the loop** tab, OneUptime intake |
+| Brief an active alert | `recall` | `run_agent()` in `src/core/agent.py` |
+| Answer cross-history questions | `reflect` | **Reflect** tab |
+| Configure bank mission and directives | `create_bank` / `create_directive` | `MemoryStore.configure_bank()` |
+
+The bank keeps an incident commander mission and directives that force the
+agent to cite only retrieved incident IDs, lead with harmful remediation, and
+admit missing history. Seeding uses stable `document_id`s with
+`update_mode="replace"`, so re-running it does not duplicate incidents.
 
 ## Quick start
 
@@ -59,10 +74,11 @@ uv sync
 cp .env.example .env
 ```
 
-### 2. Configure the optional services
+### 2. Configure Hindsight (required) and Groq (optional)
 
-The app works without external services using its local fallback and offline
-writer. For the full demo, add these values to `.env`:
+A running Hindsight instance is required. Groq is optional; without it the app
+uses a deterministic writer grounded in the memories Hindsight recalled. Add
+these values to `.env`:
 
 ```dotenv
 HINDSIGHT_BASE_URL=http://localhost:8888
@@ -94,6 +110,10 @@ uv run streamlit run app.py
 ```
 
 Open <http://localhost:8501> and click **Seed past incidents + policies**.
+
+The sidebar reports the live Hindsight connection. If the server is
+unreachable it shows the connection error and disables seeding; use **Retry
+Hindsight connection** after starting the server.
 
 ## Demo flow
 
@@ -137,16 +157,17 @@ Or launch the complete local demo environment:
 
 ## Verification
 
-Run the local acceptance check:
+Run the acceptance check against a running Hindsight instance:
 
 ```bash
 uv run python scripts/demo_check.py
 ```
 
-It verifies that the memory-enabled briefing cites the expected incidents and
-recommends rollback while warning against harmful scaling and restarts.
+It seeds the demo bank, then verifies that the memory-enabled briefing cites
+the expected incidents and recommends rollback while warning against harmful
+scaling and restarts. It exits non-zero when Hindsight is unreachable.
 
-To verify a live Hindsight connection instead of using fallback mode:
+For a shorter connectivity check:
 
 ```bash
 export HINDSIGHT_BASE_URL=https://your-cloud-url
@@ -155,8 +176,8 @@ export GROQ_API_KEY=gsk_your_groq_key
 uv run python scripts/smoke_test.py
 ```
 
-The smoke test fails when Hindsight is unreachable. It checks probe, retain,
-recall, reflect, and an optional Groq completion.
+It checks probe, retain, recall, reflect, and an optional Groq completion, and
+fails when Hindsight is unreachable.
 
 ## Project structure
 
@@ -164,7 +185,7 @@ recall, reflect, and an optional Groq completion.
 ├── app.py                         Streamlit application
 ├── src/core/
 │   ├── agent.py                   Briefing and prompt logic
-│   ├── memory.py                  Hindsight client and local fallback
+│   ├── memory.py                  Hindsight client (only memory backend)
 │   └── seed_data.py               Demo incidents and policies
 ├── src/integrations/
 │   ├── oneuptime.py               Incident adapter and service probes

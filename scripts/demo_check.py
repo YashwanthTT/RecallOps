@@ -2,8 +2,8 @@
 
 Run: python demo_check.py
 
-Uses the local fallback when Hindsight is not running. This is the acceptance
-test from the hackathon brief, with assertions.
+Requires a live Hindsight instance; there is no local fallback. This is the
+acceptance test from the hackathon brief, with assertions.
 """
 
 from __future__ import annotations
@@ -79,8 +79,9 @@ def main() -> None:
     store = MemoryStore()
     backend = store.connect()
     print(f"Memory backend: {backend}")
-    if store.error:
-        print(f"Fallback reason: {store.error}")
+    if backend != "hindsight":
+        print(f"Hindsight is required: {store.error}")
+        sys.exit(1)
 
     store.configure_bank()
     if store.warning:
