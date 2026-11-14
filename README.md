@@ -125,6 +125,76 @@ The sidebar reports the live Hindsight connection. If the server is
 unreachable it shows the connection error and disables seeding; use **Retry
 Hindsight connection** after starting the server.
 
+## Local MCP server for OpenCode
+
+Requires Node/npm, Python 3.11+, and uv. Install Python dependencies with
+`uv sync`. No npm dependencies are needed. Copy `.env.example` to `.env` if
+you have not already, and configure your Hindsight URL, API key, and bank.
+
+```bash
+npm run mcp
+```
+
+This runs a local **stdio** MCP server: it waits for an MCP client on stdin,
+so no browser URL or listening port is expected. OpenCode starts its own
+server process using `npm run --silent mcp` to keep stdout protocol-only.
+The committed `opencode.json` config targets OpenCode v2 (tested with 2.0.25).
+From this project directory, run:
+
+```bash
+opencode mcp list
+opencode
+```
+
+The `recallops` server should show as connected. You do not need to leave a
+separate `npm run mcp` terminal open. For OpenCode v1, move the `recallops`
+entry directly under `mcp` and add `"enabled": true`.
+
+If your existing OpenCode background service references a deleted project
+directory or fails to reload, start a fresh session here with
+`opencode --standalone`. This bypasses that service without modifying other
+projects. A server marked `pending` has not yet established its connection.
+
+Ask the agent: “Use RecallOps to investigate checkout-api's 502 spike.
+Retrieve similar incidents and harmful fixes, inspect the available recovery
+actions, and verify service health after remediation.”
+
+Available tools: `hindsight_status`, `recall_incidents`, `incident_briefing`,
+`reflect_on_history`, `probe_service`, `retain_resolution`,
+`list_recovery_actions`, and `execute_recovery_action`. Memory tools reuse
+the app's Hindsight bank; there is no fabricated offline memory. Groq is
+optional for briefings. The server does not automatically seed demo data.
+
+To enable actual recovery, copy `recovery-actions.example.json` to
+`recovery-actions.json`, replace the placeholder cluster context, namespace,
+and deployment with your real targets, and keep only commands you authorize
+the agent to execute. Set `RECALLOPS_ENABLE_ACTIONS=true` in `.env` and restart
+OpenCode. Commands use fixed argument arrays, no shell expansion or
+agent-supplied arguments. Production credentials come from the server process
+environment and existing CLI configuration. This is local execution; remote
+operations require a configured CLI such as kubectl or ssh. No production
+targets or credentials are bundled.
+
+A successful command exit does not prove recovery: use `probe_service` and
+your diagnostics before retaining the outcome. A timed-out command can have
+partially changed the target. Configure commands to redact secrets from
+output. The action file and `.env` are ignored by Git.
+
+```bash
+npm run test:mcp
+```
+
+Tests cover protocol initialization, discovery, validation, memory errors,
+and the recovery execution gate with a harmless local diagnostic. Live
+Hindsight integration is checked separately by `scripts/smoke_test.py`.
+
+Run `npm run check:mcp` for actual npm-launched MCP calls to status, action
+discovery, and Hindsight recall. It prints real results, including explicit
+tool errors if Hindsight is unavailable. All eight tools publish typed output
+schemas and both structured JSON and text results. Failed or timed-out recovery
+commands return MCP tool errors. Diagnostic probes report unhealthy service
+state as data so agents can inspect the status and latency.
+
 ## Demo flow
 
 1. Open the incident briefing tab.

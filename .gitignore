@@ -5,3 +5,5 @@ __pycache__/
 .streamlit/*
 !.streamlit/config.toml
 .DS_Store
+recovery-actions.json
+node_modules/

@@ -1,0 +1,10 @@
+{
+  "name": "recallops",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "mcp": "uv run python -m src.integrations.mcp_server",
+    "test:mcp": "uv run python -m unittest discover -s tests -v",
+    "check:mcp": "uv run python scripts/check_mcp.py"
+  }
+}

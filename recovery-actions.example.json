@@ -1,0 +1,12 @@
+{
+  "checkout-rollout-status": {
+    "description": "Inspect the checkout-api rollout in the production namespace; edit for your cluster.",
+    "command": ["kubectl", "--context", "YOUR_PRODUCTION_CONTEXT", "-n", "production", "rollout", "status", "deployment/checkout-api", "--timeout=25s"],
+    "timeout": 30
+  },
+  "checkout-rollback": {
+    "description": "Roll back checkout-api to the previous deployment revision; verify context and namespace before enabling.",
+    "command": ["kubectl", "--context", "YOUR_PRODUCTION_CONTEXT", "-n", "production", "rollout", "undo", "deployment/checkout-api"],
+    "timeout": 30
+  }
+}
