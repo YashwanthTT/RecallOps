@@ -195,6 +195,13 @@ schemas and both structured JSON and text results. Failed or timed-out recovery
 commands return MCP tool errors. Diagnostic probes report unhealthy service
 state as data so agents can inspect the status and latency.
 
+Run `npm run check:mcp -- --full` to also verify the payment-gateway briefing,
+reflection, and demo health probe. Memory failures exit nonzero. This check
+does not retain test incidents or execute recovery commands. If you change
+`.env` while OpenCode is running, disconnect and reconnect RecallOps via
+`/mcps` so its process reloads the configuration. Briefings can use historical
+evidence without a localhost URL; probing a live service requires its URL.
+
 ## Demo flow
 
 1. Open the incident briefing tab.

@@ -380,6 +380,8 @@ def run_agent(
         client = OpenAI(
             api_key=api_key,
             base_url=os.getenv("GROQ_BASE_URL") or DEFAULT_BASE_URL,
+            timeout=30.0,
+            max_retries=0,
         )
         response = client.chat.completions.create(
             model=os.getenv("LLM_MODEL") or DEFAULT_MODEL,

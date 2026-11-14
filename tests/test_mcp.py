@@ -14,6 +14,23 @@ from src.core.memory import Memory
 
 
 class ToolTests(unittest.TestCase):
+    def test_briefing_reflection_and_retention(self):
+        with patch.object(server, "MemoryStore") as cls, patch.dict(os.environ, {"GROQ_API_KEY": ""}):
+            store = cls.return_value
+            store.connect.return_value = "hindsight"
+            store.bank_id = "test-bank"
+            store.recall.return_value = []
+            store.reflect.return_value = "Historical pattern with evidence"
+            for name, args in [
+                ("incident_briefing", {"service": "payment-gateway", "alert": "errors"}),
+                ("reflect_on_history", {"question": "past causes?"}),
+                ("retain_resolution", {"incident_id": "TEST-1", "service": "test", "summary": "Verified test outcome"}),
+            ]:
+                result = asyncio.run(server.mcp.call_tool(name, args))
+                self.assertIn("test-bank", str(result))
+            self.assertEqual(store.retain.call_args.kwargs["document_id"], "mcp-resolution:TEST-1")
+            self.assertEqual(store.retain.call_args.kwargs["update_mode"], "replace")
+
     def test_sync_client_runs_outside_transport_loop(self):
         def connect():
             async def probe():

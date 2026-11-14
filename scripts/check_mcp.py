@@ -1,5 +1,6 @@
 """Exercise the real npm stdio server; no mocked MCP or Hindsight responses."""
 import asyncio
+import argparse
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,9 @@ from mcp.client.stdio import stdio_client
 
 
 async def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--full", action="store_true", help="Also call briefing, reflection and probe")
+    options = parser.parse_args()
     params = StdioServerParameters(command="npm", args=["run", "--silent", "mcp"],
         cwd=str(Path(__file__).resolve().parents[1]), env=dict(os.environ))
     async with stdio_client(params) as (read, write):
@@ -28,6 +32,19 @@ async def main():
             recalled = await session.call_tool("recall_incidents", {"query": "checkout-api outage rollback"})
             print(json.dumps({"tool": "recall_incidents", "isError": recalled.isError,
                               "content": [c.model_dump() for c in recalled.content]}))
+            if options.full:
+                for name, arguments in [
+                    ("incident_briefing", {"service": "payment-gateway", "alert": "Payment gateway outage — elevated errors and latency in the payment processing service"}),
+                    ("reflect_on_history", {"question": "What caused payments-gateway incident INC-2057 and how was it resolved? Cite retained evidence."}),
+                    ("probe_service", {"url": "http://localhost:8080/health", "service": "checkout-api"}),
+                ]:
+                    result = await session.call_tool(name, arguments)
+                    print(json.dumps({"tool": name, "isError": result.isError,
+                                      "result": result.structuredContent or [c.model_dump() for c in result.content]}), flush=True)
+                    if result.isError:
+                        raise RuntimeError(f"{name} failed; see result above")
+            if recalled.isError:
+                raise RuntimeError("Hindsight recall failed; MCP transport works but memory is unavailable")
             await session.send_ping()
             print("PASS: npm launch, initialize, discovery, output schemas, structured/text results, ping")
 
