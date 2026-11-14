@@ -156,19 +156,19 @@ st.markdown(
         text-transform: none !important;
       }
 
-      .stApp { background: radial-gradient(1100px 600px at 70% -10%, #EFECE4 0%, var(--bg) 60%); }
+      .stApp { background: var(--bg); }
       [data-testid="stMainBlockContainer"] {
         max-width: 1140px;
         width: calc(100% - 24px);
         box-sizing: border-box;
-        padding: 24px 28px 48px;
+        padding: 32px 32px 48px;
         margin: 12px auto 24px;
         background: var(--surface);
         border: 1px solid var(--border);
-        border-radius: var(--radius-lg);
-        box-shadow: 0 4px 24px -2px rgba(44, 38, 30, 0.05);
+        border-radius: var(--radius);
+        box-shadow: none;
       }
-      [data-testid="stSidebar"] { background: #F3EFE6; border-right: 1px solid var(--border); }
+      [data-testid="stSidebar"] { background: #F7F6F3; border-right: 1px solid var(--border); }
       [data-testid="stSidebarUserContent"] { padding-top: 12px; }
 
       /* Hide Streamlit chrome while keeping sidebar controls fully functional. */
@@ -194,7 +194,7 @@ st.markdown(
 
       /* ---- type scale: 32 / 20 / 15 / 12 ---- */
       .page-title {
-        font-size: 32px !important; line-height: 1.15; letter-spacing: -.03em;
+        font-size: 28px !important; line-height: 1.2; letter-spacing: -.03em;
         font-weight: 700; color: var(--text); margin: 0 0 8px;
       }
       .page-sub { font-size: 15px; line-height: 1.6; color: var(--text-muted); margin: 0 0 20px; max-width: 820px; }
@@ -214,7 +214,7 @@ st.markdown(
       .st-key-nav [data-testid="stButtonGroup"] {
         background: var(--surface-2);
         border: 1px solid var(--border);
-        border-radius: 999px;
+        border-radius: 8px;
         padding: 4px;
         gap: 2px;
         flex-wrap: wrap;
@@ -222,7 +222,7 @@ st.markdown(
       }
       .st-key-nav [data-testid="stButtonGroup"] button {
         border: 0 !important;
-        border-radius: 999px !important;
+        border-radius: 6px !important;
         color: var(--text-muted) !important;
         background: transparent !important;
         font-size: 13px !important;
@@ -239,8 +239,8 @@ st.markdown(
       .st-key-nav [data-testid="stButtonGroup"] button[aria-pressed="true"],
       .st-key-nav [data-testid="stButtonGroup"] button[data-selected="true"] {
         color: #FFFFFF !important;
-        background: linear-gradient(180deg, #FF6F1E 0%, #EA580C 100%) !important;
-        box-shadow: 0 2px 8px rgba(234, 88, 12, 0.32) !important;
+        background: var(--accent) !important;
+        box-shadow: none;
       }
       .st-key-nav [data-testid="stButtonGroup"] button[aria-checked="true"] p,
       .st-key-nav [data-testid="stButtonGroup"] button[aria-pressed="true"] p,
@@ -255,7 +255,7 @@ st.markdown(
       }
       .st-key-reflect_pills [data-testid="stButtonGroup"] button {
         border: 1px solid var(--border-strong) !important;
-        border-radius: 999px !important;
+        border-radius: 6px !important;
         background: var(--surface) !important;
         color: var(--text-muted) !important;
         font-size: 13px !important;
@@ -278,13 +278,13 @@ st.markdown(
         background: var(--surface);
         border: 1px solid var(--border) !important;
         border-radius: var(--radius) !important;
-        box-shadow: 0 1px 3px rgba(44, 38, 30, 0.04);
+        box-shadow: none;
       }
       [data-testid="stVerticalBlockBorderWrapper"] > div { padding: 2px; }
 
       .section-head {
         display: flex; align-items: flex-start; justify-content: space-between;
-        gap: var(--space-2); margin: 8px 0 12px;
+        gap: var(--space-2); margin: 16px 0 12px;
       }
       .section-title { font-size: 20px; font-weight: 650; letter-spacing: -.02em; color: var(--text); margin: 0; }
       .section-sub { font-size: 12px; color: var(--text-faint); margin-top: 2px; }
@@ -313,12 +313,12 @@ st.markdown(
       .status-card {
         background: var(--surface); border: 1px solid var(--border);
         border-radius: var(--radius); padding: 12px; margin: 12px 0 4px;
-        box-shadow: 0 1px 3px rgba(44, 38, 30, 0.04);
+        box-shadow: none;
       }
       .status-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 650; color: var(--text); }
       .dot { width: 8px; height: 8px; border-radius: 999px; display: inline-block; }
-      .dot.green { background: var(--green); box-shadow: 0 0 0 3px rgba(22, 163, 74, .16); }
-      .dot.red { background: var(--red); box-shadow: 0 0 0 3px rgba(220, 38, 38, .16); }
+      .dot.green { background: var(--green); box-shadow: none; }
+      .dot.red { background: var(--red); box-shadow: none; }
       .status-host { font-size: 12px; color: var(--text-faint); margin: 6px 0 8px 16px; }
       .bank-chip {
         display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -330,7 +330,7 @@ st.markdown(
       .metric-card {
         background: var(--surface); border: 1px solid var(--border);
         border-radius: 10px; padding: 8px 8px 7px; text-align: center;
-        box-shadow: 0 1px 2px rgba(44, 38, 30, 0.03);
+        box-shadow: none;
       }
       .metric-value { display: block; font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.15; }
       .metric-label { display: block; font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
@@ -355,9 +355,7 @@ st.markdown(
 
       /* ---- hero / empty state ---- */
       .st-key-hero_card [data-testid="stVerticalBlockBorderWrapper"] {
-        background:
-          radial-gradient(600px 220px at 0% 0%, rgba(234, 88, 12, .10), transparent 70%),
-          var(--surface-2);
+        background: var(--surface-2);
         border-color: rgba(234, 88, 12, .26) !important;
       }
       .hero-kicker { font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
@@ -377,7 +375,7 @@ st.markdown(
         background: rgba(255, 255, 255, .96);
         backdrop-filter: blur(12px);
         border-color: var(--border-strong) !important;
-        box-shadow: 0 4px 16px rgba(44, 38, 30, 0.06);
+        box-shadow: none;
       }
       .impact-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
       .impact-item { padding: 2px 6px; }
@@ -420,10 +418,18 @@ st.markdown(
       }
       [class*="st-key-preset_"]:hover [data-testid="stVerticalBlockBorderWrapper"] {
         border-color: var(--accent) !important;
-        box-shadow: 0 4px 12px rgba(234, 88, 12, 0.12) !important;
+        box-shadow: none;
       }
-      .preset-title { font-size: 14px; font-weight: 650; color: var(--text); line-height: 1.35; margin: 8px 0 4px; min-height: 38px; }
-      .preset-blurb { font-size: 12px; line-height: 1.5; color: var(--text-faint); min-height: 54px; }
+      .preset-title { font-size: 14px; font-weight: 650; color: var(--text); line-height: 1.35; margin: 8px 0 4px; min-height: 40px; }
+      [class*="st-key-preset_"] { height: 100%; }
+      [class*="st-key-preset_"] [data-testid="stVerticalBlock"] { gap: 12px; }
+      [data-testid="stHorizontalBlock"] { align-items: stretch; }
+      .st-key-nav { margin-bottom: 8px; }
+      .status-card { margin-top: 20px; }
+      .section-head > div:first-child { min-width: 0; }
+      @media (prefers-reduced-motion: reduce) {
+        button { transition: none !important; transform: none !important; }
+      }
 
       /* ---- stepper ---- */
       .stepper { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 16px; }
@@ -431,7 +437,7 @@ st.markdown(
         display: flex; align-items: center; gap: 8px; padding: 7px 12px;
         border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
         font-size: 12px; font-weight: 650; color: var(--text-faint);
-        box-shadow: 0 1px 2px rgba(44, 38, 30, 0.03);
+        box-shadow: none;
       }
       .step-pill .n {
         width: 18px; height: 18px; border-radius: 999px; display: inline-flex;
@@ -445,19 +451,19 @@ st.markdown(
 
       /* ---- native widgets & orange button highlights ---- */
       [data-testid="stBaseButton-primary"], [data-testid="stBaseButton-primaryFormSubmit"] {
-        background: linear-gradient(180deg, #FF6F1E 0%, #EA580C 100%) !important;
+        background: var(--accent) !important;
         border: 1px solid #EA580C !important;
         color: #FFFFFF !important;
         border-radius: 10px !important;
         font-weight: 650 !important;
         font-size: 14px !important;
         min-height: 40px;
-        box-shadow: 0 2px 8px rgba(234, 88, 12, 0.28) !important;
+        box-shadow: none;
         transition: all 0.15s ease-in-out !important;
       }
       [data-testid="stBaseButton-primary"]:hover, [data-testid="stBaseButton-primaryFormSubmit"]:hover {
-        background: linear-gradient(180deg, #FF7F33 0%, #EA580C 100%) !important;
-        box-shadow: 0 4px 14px rgba(234, 88, 12, 0.40) !important;
+        background: var(--accent-strong) !important;
+        box-shadow: none;
         transform: translateY(-1px);
       }
       [data-testid="stBaseButton-primary"]:active, [data-testid="stBaseButton-primaryFormSubmit"]:active {
@@ -471,14 +477,14 @@ st.markdown(
         font-weight: 600 !important;
         font-size: 14px !important;
         min-height: 40px;
-        box-shadow: 0 1px 3px rgba(44, 38, 30, 0.04) !important;
+        box-shadow: none;
         transition: all 0.15s ease-in-out !important;
       }
       [data-testid="stBaseButton-secondary"]:hover, [data-testid="stBaseButton-secondaryFormSubmit"]:hover {
         border-color: #EA580C !important;
         color: #EA580C !important;
         background: rgba(234, 88, 12, 0.06) !important;
-        box-shadow: 0 2px 6px rgba(234, 88, 12, 0.12) !important;
+        box-shadow: none;
       }
       /* Button labels inherit the button colour instead of the muted paragraph colour. */
       [data-testid="stBaseButton-primary"] p, [data-testid="stBaseButton-primaryFormSubmit"] p { color: #FFFFFF !important; }
@@ -494,7 +500,7 @@ st.markdown(
       [data-baseweb="input"]:focus-within, [data-baseweb="textarea"]:focus-within,
       [data-baseweb="select"] > div:focus-within {
         border-color: var(--accent) !important;
-        box-shadow: 0 0 0 3px var(--accent-soft) !important;
+        box-shadow: none;
       }
       input, textarea { font-size: 14px !important; color: var(--text) !important; }
       label, [data-testid="stWidgetLabel"] p { font-size: 13px !important; color: var(--text-muted) !important; font-weight: 500; }
@@ -538,7 +544,7 @@ st.markdown(
         border: 1px solid var(--border) !important;
         border-radius: var(--radius) !important;
         background: var(--surface) !important;
-        box-shadow: 0 1px 3px rgba(44, 38, 30, 0.03);
+        box-shadow: none;
         margin: 6px 0;
       }
       [data-testid="stExpander"] summary { font-size: 13px !important; font-weight: 600; color: var(--text); padding: 8px 12px; }
@@ -1195,8 +1201,8 @@ else:
 
 with st.sidebar:
     st.markdown(
-        '<div class="brand">🧠 Incident Memory</div>'
-        '<div class="brand-sub">On-call copilot for Northwind Pay.</div>',
+        '<div class="brand">RecallOps</div>'
+        '<div class="brand-sub">Northwind Pay</div>',
         unsafe_allow_html=True,
     )
 
@@ -1205,8 +1211,6 @@ with st.sidebar:
             f"""
             <div class="status-card">
               <div class="status-row"><span class="dot green"></span>Hindsight connected</div>
-              <div class="status-host">{esc(_short_host(store.base_url))}</div>
-              <div class="bank-chip" title="{esc(store.bank_id)}">{esc(store.bank_id)}</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1216,7 +1220,6 @@ with st.sidebar:
             """
             <div class="status-card">
               <div class="status-row"><span class="dot red"></span>Hindsight unavailable</div>
-              <div class="status-host">Memory is required. Nothing is faked.</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1268,33 +1271,6 @@ with st.sidebar:
         """,
         unsafe_allow_html=True,
     )
-    st.caption(
-        "Live counts for this session."
-        if seeded_docs
-        else "This bank already has memories; counters show work done this session."
-        if not bank_empty
-        else "Seed the demo bank to populate these counters."
-    )
-
-    st.markdown(
-        """
-        <div style="margin-top:18px">
-          <div class="section-sub" style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-faint)">How memory works</div>
-          <div class="memory-how">
-            <div class="memory-how-row"><span class="memory-how-icon">🗂</span><span><code>retain</code> stores incidents and policies.</span></div>
-            <div class="memory-how-row"><span class="memory-how-icon">🔍</span><span><code>recall</code> finds similar past incidents.</span></div>
-            <div class="memory-how-row"><span class="memory-how-icon">🧭</span><span><code>reflect</code> answers across the bank.</span></div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    if not os.getenv("GROQ_API_KEY", "").strip():
-        st.caption(
-            "No `GROQ_API_KEY`: briefings use the deterministic writer grounded in "
-            "the memories Hindsight recalled."
-        )
 
 toast_message = st.session_state.pop("seed_toast", None)
 if toast_message:
@@ -1303,10 +1279,7 @@ if toast_message:
 # ---------------------------------------------------------------- header + nav
 st.markdown(
     """
-    <div class="eyebrow">Northwind Pay · On-call copilot</div>
-    <h1 class="page-title">Incident Memory Agent</h1>
-    <p class="page-sub">Generic runbooks say restart and scale. This agent remembers that
-    <em>the last two times you did that, the incident got worse</em>.</p>
+    <h1 class="page-title">Incident memory</h1>
     """,
     unsafe_allow_html=True,
 )
@@ -1339,11 +1312,8 @@ if active_tab == "Briefing":
         with st.container(border=True, key="hero_card"):
             st.markdown(
                 """
-                <div class="hero-kicker">Hindsight is required</div>
                 <div class="hero-title">Memory is offline</div>
-                <p class="hero-body">The app will not fake memory. Start the Hindsight server,
-                then retry the connection in the sidebar. Recalled incidents and the
-                negative-memory warnings only appear when Hindsight answers.</p>
+                <p class="hero-body">Connect to Hindsight to access incident history.</p>
                 """,
                 unsafe_allow_html=True,
             )
@@ -1355,18 +1325,8 @@ if active_tab == "Briefing":
         with st.container(border=True, key="hero_card"):
             st.markdown(
                 f"""
-                <div class="hero-kicker">First run</div>
                 <div class="hero-title">No memory yet</div>
-                <p class="hero-body">Seed <strong>11 past incidents</strong> and
-                <strong>4 team policies</strong> to start. The first briefing will cite
-                real incident IDs, warn about actions that made past outages worse, and
-                show the exact command that worked.</p>
-                <div class="hero-stats">
-                  {chip("11 incidents", "blue", "📌")}
-                  {chip("4 policies", "indigo", "📘")}
-                  {chip("15 memories", "green", "🧠")}
-                  {chip("No data leaves your bank", "", "🔒")}
-                </div>
+                <p class="hero-body">Add 11 sample incidents and 4 policies to get started.</p>
                 """,
                 unsafe_allow_html=True,
             )
@@ -1377,8 +1337,6 @@ if active_tab == "Briefing":
             f"""
             <div class="ready-strip">
               {chip("Memory ready", "green", "✅")}
-              <span>Incident history is available in this bank.</span>
-              <span class="muted">Pick a scenario below or write a custom alert.</span>
             </div>
             """,
             unsafe_allow_html=True,
@@ -1394,9 +1352,7 @@ if active_tab == "Briefing":
 
     st.markdown(
         _section_head(
-            "Simulate an alert",
-            "Pick a scenario, then compare a generic runbook with the Hindsight briefing.",
-            chip("2-click demo", "indigo", "⚡"),
+            "Choose an alert",
         ),
         unsafe_allow_html=True,
     )
@@ -1408,8 +1364,7 @@ if active_tab == "Briefing":
             with st.container(border=True, key=f"preset_{index}"):
                 st.markdown(
                     f'<div class="chip-row">{chip(service, "blue")}{chip(severity, "amber")}</div>'
-                    f'<div class="preset-title">{esc(title)}</div>'
-                    f'<div class="preset-blurb">{esc(blurb)}</div>',
+                    f'<div class="preset-title">{esc(title)}</div>',
                     unsafe_allow_html=True,
                 )
                 if st.button("Run briefing →", key=f"run_preset_{index}", use_container_width=True):
@@ -1469,7 +1424,7 @@ if active_tab == "Briefing":
                     f'<div class="mini-head">Without memory {chip("Generic runbook", "red", "⚠")}</div>',
                     unsafe_allow_html=True,
                 )
-                st.caption("No team history consulted. This is the dangerous baseline.")
+
                 st.markdown(result["without"])
         with col_with:
             with st.container(border=True, key="with_card"):
@@ -1477,7 +1432,6 @@ if active_tab == "Briefing":
                     f'<div class="mini-head">With Hindsight memory {chip("Cited + grounded", "green", "✅")}</div>',
                     unsafe_allow_html=True,
                 )
-                st.caption("Recalled incidents and policies, including what made past outages worse.")
                 _render_structured(result["with"])
 
         _render_recalled(result["memories"])
@@ -1487,8 +1441,7 @@ elif active_tab == "Service monitor":
     st.markdown(
         _section_head(
             "Service monitor",
-            "OneUptime detects the outage. Hindsight recalls the fix — and the actions that made it worse.",
-            chip("Synthetic probe", "blue", "🛰"),
+            "Monitor health and investigate outages.",
         ),
         unsafe_allow_html=True,
     )
@@ -1709,8 +1662,7 @@ elif active_tab == "OneUptime intake":
     st.markdown(
         _section_head(
             "OneUptime intake",
-            "Paste an export or Workflows API Post payload, review the parsed fields, then retain it.",
-            chip("3-step intake", "indigo", "📥"),
+            "Import an incident into memory.",
         ),
         unsafe_allow_html=True,
     )
@@ -1949,8 +1901,7 @@ elif active_tab == "Close the loop":
     st.markdown(
         _section_head(
             "Close the loop",
-            "Every closed incident becomes a memory. Next time a similar alert fires, the agent recalls the fix — and the actions that failed.",
-            chip("retain()", "green", "🔁"),
+            "Save the cause and resolution for next time.",
         ),
         unsafe_allow_html=True,
     )
@@ -2066,8 +2017,7 @@ elif active_tab == "Reflect":
     st.markdown(
         _section_head(
             "Ask the whole memory bank",
-            "reflect reasons across every retained incident and policy, not just the top matches.",
-            chip("Cross-history reasoning", "indigo", "🧭"),
+            "Ask about past incidents and team policies.",
         ),
         unsafe_allow_html=True,
     )
@@ -2130,7 +2080,7 @@ elif active_tab == "Reflect":
                 st.markdown(f'<div class="chip-row"><span class="muted">Sources</span>{source_chips}</div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div class="muted">No incident IDs were cited in this answer.</div>', unsafe_allow_html=True)
-            st.caption(f"backend: {turn['backend']}")
+
 
 # ---------------------------------------------------------------- integration guide
 elif active_tab == "Integration guide":
