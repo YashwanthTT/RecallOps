@@ -25,6 +25,16 @@ Incident Memory Agent turns that history into a focused briefing:
 The app compares the same agent with and without recalled memory, making the
 value of Hindsight visible.
 
+## How this maps to the judging criteria
+
+| Criterion | What to look at |
+| --- | --- |
+| **Innovation** | Negative memory: the agent remembers what made past outages *worse*, not just what fixed them. Most memory demos retrieve similar tickets; this one warns against repeating harmful remediation. |
+| **Use of Hindsight** | `retain`, `recall`, and `reflect` drive the briefing, the learning loop, and cross-history questions. The app refuses to fake memory when Hindsight is down, and the live tab shows the same model with and without recall plus cited-ID and pitfall deltas. |
+| **Technical implementation** | Typed Hindsight wrapper, bank mission/directives, idempotent seeding, deterministic no-LLM writer, clear error states, and a live smoke test. |
+| **User experience** | One screen shows before/after, impact metrics, recalled memories, and exact commands. Presets and a close-the-loop form make the learning progression a two-click demo. |
+| **Real-world impact** | Fits the on-call workflow: monitoring via OneUptime, memory via Hindsight, human approval before running any command. Separate banks per environment. |
+
 ## How it works
 
 ```text

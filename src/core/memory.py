@@ -46,6 +46,11 @@ def _numeric_scores(scores: Any) -> float:
             elif isinstance(value, dict):
                 values.extend(float(v) for v in value.values() if isinstance(v, (int, float)))
         return max(values, default=0.0)
+    final = getattr(scores, "final", None)
+    if isinstance(final, (int, float)):
+        return float(final)
+    if hasattr(scores, "model_dump"):
+        return _numeric_scores(scores.model_dump())
     return 0.0
 
 
