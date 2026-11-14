@@ -333,7 +333,7 @@ def run_agent(
         # Hindsight is the only memory backend; a failure here must be visible.
         # Hindsight returns several facts per incident; 10 leaves room for the
         # exact historical match after near-duplicate facts are ranked.
-        memories = store.recall(query, limit=10)
+        memories = store.recall(query, limit=12)
 
         try:
             # Policies are short and often lose a top-k race to incident logs.

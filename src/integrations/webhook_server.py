@@ -118,6 +118,7 @@ class Handler(BaseHTTPRequestHandler):
             memories_count = 0
 
             with STORE_LOCK:
+                store.connect()
                 # If resolved or retain explicitly requested, retain in Hindsight
                 is_resolved = incident.status.lower() in ("resolved", "closed")
                 if is_resolved or not want_briefing:

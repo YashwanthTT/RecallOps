@@ -70,6 +70,9 @@ class MemoryStore:
     """
 
     def __init__(self, base_url: str | None = None, api_key: str | None = None, bank_id: str | None = None) -> None:
+        self._custom_base_url = base_url
+        self._custom_api_key = api_key
+        self._custom_bank_id = bank_id
         self.base_url = base_url or os.getenv("HINDSIGHT_BASE_URL") or DEFAULT_BASE_URL
         self.api_key = api_key if api_key is not None else os.getenv("HINDSIGHT_API_KEY", "")
         self.bank_id = bank_id or os.getenv("HINDSIGHT_BANK_ID") or DEFAULT_BANK_ID
@@ -92,6 +95,13 @@ class MemoryStore:
         """
         self.error = None
         self.close()
+        if self._custom_base_url is None:
+            self.base_url = os.getenv("HINDSIGHT_BASE_URL") or DEFAULT_BASE_URL
+        if self._custom_api_key is None:
+            self.api_key = os.getenv("HINDSIGHT_API_KEY", "")
+        if self._custom_bank_id is None:
+            self.bank_id = os.getenv("HINDSIGHT_BANK_ID") or DEFAULT_BANK_ID
+        self.timeout = float(os.getenv("HINDSIGHT_TIMEOUT") or "120")
         try:
             from hindsight_client import Hindsight
         except Exception as exc:  # optional dependency / broken install

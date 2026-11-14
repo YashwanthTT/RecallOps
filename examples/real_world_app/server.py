@@ -27,6 +27,13 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
 HOST = os.getenv("CHECKOUT_API_HOST", "0.0.0.0")
 PORT = int(os.getenv("CHECKOUT_API_PORT", "8080"))
 
